@@ -48,6 +48,25 @@ Then add to `~/.claude/settings.json`:
 
 Open a new session. That's it.
 
+## Antigravity CLI (`agy`)
+
+The same script works as the status line of Google's Antigravity CLI. Add to `~/.gemini/antigravity-cli/settings.json`:
+
+```json
+{
+  "statusLine": { "type": "command", "command": "~/.claude/statusline.sh" }
+}
+```
+
+agy's payload carries no `rate_limits`, so the script falls back to `agy -p "/usage"`: parsed with `python3`, refreshed in the background every 3 min, and cached in `~/.claude/.cache/agy-quota.cache`. Gemini models use the Gemini quota, Claude/GPT models the other one. The effort comes from the model name (`Gemini 3.8 Flash (High)`), and Gemini Flash ⚡, Gemini Pro ✨ and GPT 🪐 get their own mascot and colors.
+
+| Variable | Default | |
+|---|---|---|
+| `SL_AGY_BIN` | `agy` on `PATH`, else `~/.local/bin/agy` | Path to the agy binary |
+| `SL_AGY_TTL` | `180` | Seconds between background `/usage` refreshes |
+
+In Claude Code, `rate_limits` are present, so the fallback never runs.
+
 ## Try it first
 
 ```bash

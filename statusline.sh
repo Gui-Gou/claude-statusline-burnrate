@@ -71,6 +71,69 @@ IFS=$'\x1f' read -r dir model cpct r5 r5reset r7 r7reset eff ladd lrem sid cost 
     (.session_id // ""),
     (.cost.total_cost_usd // "" | tostring) ] | join("")')
 
+# ---- Antigravity CLI (agy) fallback: quota from a cached `agy -p "/usage"` --
+# agy runs this same script as its statusLine but its payload has no
+# rate_limits. When they are missing and agy + python3 exist, parse agy's own
+# /usage report instead. The call is slow, so it refreshes in the BACKGROUND
+# at most every SL_AGY_TTL seconds; this render reads the last cached result.
+# Gemini and Claude/GPT models have separate quotas: pick by model name.
+AGY="${SL_AGY_BIN:-$(command -v agy 2>/dev/null || echo "$HOME/.local/bin/agy")}"
+if { [ -z "$r5" ] || [ -z "$r7" ]; } && [ -x "$AGY" ] && command -v python3 >/dev/null 2>&1; then
+  mkdir -p "$HOME/.claude/.cache" 2>/dev/null
+  QCACHE="$HOME/.claude/.cache/agy-quota.cache"
+  now_ts=$(date +%s)
+  last_mod=$(stat -f %m "$QCACHE" 2>/dev/null || stat -c %Y "$QCACHE" 2>/dev/null || echo 0)
+  if [ $(( now_ts - last_mod )) -ge "${SL_AGY_TTL:-180}" ]; then
+    touch "$QCACHE" 2>/dev/null  # claim this refresh: no stampede of parallel agy calls
+    (
+      out=$("$AGY" -p "/usage" 2>/dev/null)
+      if [ -n "$out" ]; then
+        python3 -c '
+import sys, re, datetime
+text = sys.stdin.read()
+for is_gemini, tag in [(True, "gemini"), (False, "other")]:
+    prefix = "Gemini Models" if is_gemini else "Claude and GPT models"
+    r5 = ""; r5reset = ""; r7 = ""; r7reset = ""
+    for line in text.splitlines():
+        if not line.startswith(prefix): continue
+        m_wk = re.search(r"Weekly Limit Remaining\s+(\d+)%\s+(\S+)", line)
+        if m_wk:
+            r7 = str(100 - int(m_wk.group(1)))
+            r7reset = str(int(datetime.datetime.fromisoformat(m_wk.group(2).replace("Z", "+00:00")).timestamp()))
+        m_5h = re.search(r"Five Hour Limit Remaining\s+(\d+)%\s+(\S+)", line)
+        if m_5h:
+            r5 = str(100 - int(m_5h.group(1)))
+            r5reset = str(int(datetime.datetime.fromisoformat(m_5h.group(2).replace("Z", "+00:00")).timestamp()))
+    print(f"{tag} {r5} {r5reset} {r7} {r7reset}")
+' <<< "$out" > "$QCACHE.tmp" 2>/dev/null && mv -f "$QCACHE.tmp" "$QCACHE" 2>/dev/null
+      fi
+    ) >/dev/null 2>&1 &
+  fi
+  if [ -f "$QCACHE" ]; then
+    model_type="other"
+    case "$(printf '%s' "$model" | tr '[:upper:]' '[:lower:]')" in
+      *gemini*) model_type="gemini" ;;
+    esac
+    while read -r tag qr5 qr5reset qr7 qr7reset; do
+      if [ "$tag" = "$model_type" ]; then
+        [ -z "$r5" ] && r5="$qr5"
+        [ -z "$r5reset" ] && r5reset="$qr5reset"
+        [ -z "$r7" ] && r7="$qr7"
+        [ -z "$r7reset" ] && r7reset="$qr7reset"
+      fi
+    done < "$QCACHE"
+  fi
+fi
+
+# agy has no .effort field: it lives in the name, e.g. "Gemini 3.8 Flash (High)"
+if [ -z "$eff" ]; then
+  case "$model" in
+    *\(Low\)*|*\(low\)*)       eff="low" ;;
+    *\(Medium\)*|*\(medium\)*) eff="medium" ;;
+    *\(High\)*|*\(high\)*)     eff="high" ;;
+    *\(XHigh\)*|*\(xhigh\)*|*\(Max\)*|*\(max\)*) eff="xhigh" ;;
+  esac
+fi
 model="${model%% (*}"          # trim verbose suffixes e.g. "Opus 4.8 (1M context)" -> "Opus 4.8"
 
 DIM=$'\e[2m'; GRN=$'\e[32m'; YEL=$'\e[33m'; ORG=$'\e[38;5;208m'; RED=$'\e[31m'; CYAN=$'\e[36m'; RST=$'\e[0m'; esc=$'\e'
@@ -88,12 +151,16 @@ fn=$(( fn + 1 )); printf '%s' "$fn" > "$FRAMEF" 2>/dev/null
 
 # ---- per-model hue family + per-effort color --------------------------------
 # Each model gets its own rainbow: Opus = warm reds/golds, Sonnet = blues,
-# Fable = purples/magentas, Haiku = greens, unknown = full rainbow.
+# Fable = purples/magentas, Haiku = greens, Flash = electric cyan, Pro = deep royal indigo, GPT = emerald, unknown = full rainbow.
 case "$(printf '%s' "$model" | tr '[:upper:]' '[:lower:]')" in
   *opus*)   MHUES=(196 202 208 214 220 226 214 208); memoji="🎭" ;;  # theater: the grand opus
   *sonnet*) MHUES=(21 27 33 39 45 51 45 39);         memoji="🪶" ;;  # quill: the poem
   *fable*)  MHUES=(93 99 135 141 177 201 171 135);   memoji="🦄" ;;  # unicorn: purple like its rainbow
   *haiku*)  MHUES=(22 28 34 40 46 82 118 46);        memoji="🌸" ;;  # cherry blossom
+  *flash*)  MHUES=(39 45 51 81 117 123 51 45);       memoji="⚡" ;;  # lightning: Gemini Flash
+  *pro*)    MHUES=(27 33 63 99 135 171 135 99);      memoji="✨" ;;  # sparkle: Gemini Pro
+  *gemini*) MHUES=(27 33 39 69 75 99 135 141);       memoji="✨" ;;  # Google Gemini
+  *gpt*)    MHUES=(34 40 46 82 118 82 46 40);        memoji="🪐" ;;  # GPT models
   *)        MHUES=(196 208 226 46 51 33 201 129);    memoji="🤖" ;;
 esac
 case "$eff" in  # effort tier gets its own color, cool -> hot
