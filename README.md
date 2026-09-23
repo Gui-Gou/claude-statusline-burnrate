@@ -31,6 +31,8 @@ to ~/.claude/statusline.sh, chmod +x it, then set statusLine to
 without touching my other settings.
 ```
 
+Using the Antigravity CLI too? Add "and the same statusLine in ~/.gemini/antigravity-cli/settings.json" to the prompt (see [below](#antigravity-cli-agy)).
+
 **By hand** — two commands:
 
 ```bash
@@ -50,7 +52,17 @@ Open a new session. That's it.
 
 ## Antigravity CLI (`agy`)
 
-The same script works as the status line of Google's Antigravity CLI. Add to `~/.gemini/antigravity-cli/settings.json`:
+The same script works as the status line of Google's Antigravity CLI. Needs `jq`, `python3` and `agy`.
+
+Already installed for Claude Code? Skip the download and just add the setting below. Otherwise:
+
+```bash
+mkdir -p ~/.claude
+curl -fsSL https://raw.githubusercontent.com/Gui-Gou/claude-statusline-burnrate/main/statusline.sh -o ~/.claude/statusline.sh
+chmod +x ~/.claude/statusline.sh
+```
+
+Then add to `~/.gemini/antigravity-cli/settings.json`:
 
 ```json
 {
