@@ -3,6 +3,7 @@
 #   assets/screenshot.png        hero: one card
 #   assets/states.png            four usage states, card edition
 #   assets/classic.png           the one-line v1 (statusline-classic.sh)
+#   assets/herdr.png             the Herdr edition (statusline-herdr.sh)
 #   assets/infographic.png       every stat explained + repo link (for sharing)
 #   assets/infographic-clean.png the same without the link (used in the README)
 # Needs: jq, python3 + Pillow, Google Chrome. Run from anywhere.
@@ -45,6 +46,13 @@ card() {  # same args as payload; the border clock pinned to 20:14
 classic() {
   rm -rf "$HOME/.claude"
   payload "$@" | bash "$REPO/statusline-classic.sh"
+  printf '\n'
+}
+
+herdr() {  # same args as payload, plus this session's lines +/-
+  rm -rf "$HOME/.claude"
+  payload "$@" | jq -c --arg d "$HOME/src/my-app" '.cost += {total_lines_added: 128, total_lines_removed: 43}
+    | .workspace = {current_dir: $d, project_dir: $d}' | bash "$REPO/statusline-herdr.sh"
   printf '\n'
 }
 
@@ -110,6 +118,10 @@ page "$WORK/states.frag" "$REPO/assets/states.png" "2400,2400" 18
 # ---- classic one-liner -----------------------------------------------------------
 { printf '<div class="classic">'; classic "${HERO[@]}" | python3 "$TOOLS/ansi2html.py"; printf '</div>'; } > "$WORK/classic.frag"
 page "$WORK/classic.frag" "$REPO/assets/classic.png" "2400,500" 20
+
+# ---- Herdr edition ---------------------------------------------------------------
+{ printf '<div class="classic">'; herdr "${HERO[@]}" | python3 "$TOOLS/ansi2html.py"; printf '</div>'; } > "$WORK/herdr.frag"
+page "$WORK/herdr.frag" "$REPO/assets/herdr.png" "2400,500" 20
 
 # ---- infographic -----------------------------------------------------------------
 for v in clean linked; do

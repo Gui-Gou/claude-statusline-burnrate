@@ -74,6 +74,21 @@ chmod +x ~/.claude/statusline.sh
 
 Upgrading from v1: re-running the install gives you the card. The card is about 65 columns wide, so on a narrow terminal the classic line fits better.
 
+## Using Herdr?
+
+[Herdr](https://herdr.dev) already shows your plan usage, git branch and agent status. `statusline-herdr.sh` keeps only what Herdr can't show for each pane: the model and effort, this chat's context, the lines this session added and removed, and the folder Claude works in right now.
+
+Herdr shows the folder a pane started in, but Claude moves with `cd`. So the folder is plain while Claude stays inside the launch folder, **amber** once it leaves it, and **red** when it is working in a different git repo, where edits may land in the wrong place.
+
+![Herdr edition](assets/herdr.png)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Gui-Gou/claude-statusline-burnrate/main/statusline-herdr.sh -o ~/.claude/statusline.sh
+chmod +x ~/.claude/statusline.sh
+```
+
+Inside a Herdr terminal it also writes one small JSON per session to `~/.claude/.cache/herdr-usage/`, so a Herdr panel can show the plan usage. Try it with `./demo.sh --herdr`.
+
 ## Antigravity CLI (`agy`)
 
 Both scripts also work as the status line of Google's Antigravity CLI. Needs `jq`, `python3` and `agy`.
@@ -107,6 +122,8 @@ In Claude Code, `rate_limits` are present, so the fallback never runs.
 | `SL_STATUS` | `1` | `0` stops the background check of status.claude.com (a 🔥 appears only during an incident) |
 | `SL_TASKS` | `0` | `1` counts open / in-progress / blocked items in `project-management/TASKS.md` in place of the cost |
 | `SL_AGY_BIN` | `agy` on `PATH`, else `~/.local/bin/agy` | Path to the agy binary |
+| `SL_HERDR_FEED` | `auto` | Herdr edition only: `auto` writes the usage feed inside Herdr, `1` always, `0` never |
+| `SL_HERDR_DIR` | `1` | Herdr edition only: `0` hides the current-folder segment |
 | `SL_AGY_TTL` | `180` | Seconds between background agy `/usage` refreshes |
 
 Colors, thresholds and layout are short, commented blocks of bash. Make it yours.

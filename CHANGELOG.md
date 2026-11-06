@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.0 — 2026-10-31
+
+### Added
+- **Herdr edition** (`statusline-herdr.sh`): one short line for running Claude Code inside [Herdr](https://herdr.dev). Herdr already shows usage, branch and agent status, so the line keeps only the model and effort, the context bar with tokens left before 200k, this session's lines +/−, and the folder Claude works in now. Only the bar is colored; model and effort get a faint tint.
+- **Folder drift** on the Herdr line: the short path of the current folder, last on the line. Plain inside the launch folder, amber outside it, red in a different git repo. The repo check walks up for `.git` in pure bash (no `git` call). `SL_HERDR_DIR=0` hides it.
+- It feeds Herdr: one JSON per session in `~/.claude/.cache/herdr-usage/` plus the weekly sub-tick file, written in the background. `SL_HERDR_FEED` (`auto` / `1` / `0`) controls it.
+- `./demo.sh --herdr` (with an amber and a red folder case), and `assets/herdr.png` rendered by `tools/make-images.sh`.
+
 ## 2.0.0 — 2026-09-24
 
 The status line is now a two-row **card**. The one-liner lives on as `statusline-classic.sh`.

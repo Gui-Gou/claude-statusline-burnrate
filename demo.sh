@@ -2,8 +2,9 @@
 # Preview the status line without touching your real quota or cache.
 # Usage:  ./demo.sh             four moods, card edition
 #         ./demo.sh --classic   the same four moods, one-line v1
+#         ./demo.sh --herdr     the same four moods, Herdr edition
 #         ./demo.sh --live      animated tour: meters sweep, models cycle
-#                               (add --classic for the one-liner; ctrl-c stops)
+#                               (add --classic or --herdr; ctrl-c stops)
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -11,6 +12,7 @@ SCRIPT="$PWD/statusline.sh"; LIVE=0
 for a in "$@"; do
   case "$a" in
     --classic) SCRIPT="$PWD/statusline-classic.sh" ;;
+    --herdr)   SCRIPT="$PWD/statusline-herdr.sh" ;;
     --live)    LIVE=1 ;;
   esac
 done
@@ -26,7 +28,7 @@ git -C "$APP" init -q 2>/dev/null && \
     commit -q --allow-empty -m demo 2>/dev/null || true
 
 payload() {  # model effort ctx% 5h% wk% cost [ctx-tokens] [5h-reset-in] [wk-reset-in]
-  jq -n --arg m "$1" --arg e "$2" --arg dir "$APP" \
+  jq -n --arg m "$1" --arg e "$2" --arg dir "${CUR:-$APP}" --arg proj "$APP" \
         --argjson ctx "$3" --argjson r5 "$4" --argjson r7 "$5" --argjson cost "$6" \
         --argjson tok "${7:-60000}" \
         --argjson r5r "$(( now + ${8:-4920} ))" --argjson r7r "$(( now + ${9:-302400} ))" '
@@ -38,7 +40,7 @@ payload() {  # model effort ctx% 5h% wk% cost [ctx-tokens] [5h-reset-in] [wk-res
                      seven_day: { used_percentage: $r7, resets_at: $r7r } },
       cost: { total_cost_usd: $cost, total_duration_ms: 2040000,
               total_lines_added: 128, total_lines_removed: 43 },
-      session_id: "demo", workspace: { current_dir: $dir } }'
+      session_id: "demo", workspace: { current_dir: $dir, project_dir: $proj } }'
 }
 
 render() { payload "$@" | bash "$SCRIPT"; printf '\n'; }
@@ -73,3 +75,12 @@ render "Sonnet 5" medium 51 58 47 7.10 190000 6000 280000
 echo
 echo "over budget:"
 render "Haiku 4.5" low 72 88 76 12.60 320000 4920 230000
+
+if [ "$SCRIPT" = "$PWD/statusline-herdr.sh" ]; then
+  # the folder segment: started in my-app, then Claude moved with cd
+  mkdir -p "$HOME/notes" "$HOME/other-repo"; git -C "$HOME/other-repo" init -q 2>/dev/null || true
+  echo; echo "drifted out of the launch folder (amber):"
+  CUR="$HOME/notes" render "Opus 4.8" high 24 41 22 3.20 60000
+  echo; echo "working in another repo (red):"
+  CUR="$HOME/other-repo" render "Opus 4.8" high 24 41 22 3.20 60000
+fi
